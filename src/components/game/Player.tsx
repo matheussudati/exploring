@@ -7,7 +7,8 @@ interface PlayerProps {
   isLocal?: boolean;
   weapon?: Weapon;
   mousePosition: { x: number; y: number };
-  onShoot?: () => void;
+  onShoot?: (mousePosition?: { x: number; y: number }) => void;
+  isReloading?: boolean;
 }
 
 export function Player({
@@ -16,9 +17,8 @@ export function Player({
   weapon,
   mousePosition,
   onShoot,
+  isReloading = false,
 }: PlayerProps) {
-  const [isReloading, setIsReloading] = useState(false);
-
   // Calcula a direção da arma baseada na posição do mouse
   const centerX = window.innerWidth / 2;
   const centerY = window.innerHeight / 2;
@@ -29,34 +29,32 @@ export function Player({
     { x: mousePosition.x, y: mousePosition.y }
   );
 
-  const handleShoot = () => {
+  const handleShoot = (event?: MouseEvent) => {
     if (
       weapon &&
       weapon.ammo > 0 &&
       !isReloading &&
       Date.now() - weapon.lastShot > weapon.fireRate
     ) {
-      onShoot?.();
-    } else if (weapon && weapon.ammo === 0) {
-      // Sem munição: aguarda recarga automática controlada pelo MapGame
-      setIsReloading(true);
+      // Se temos o evento do mouse, passa a posição atualizada
+      if (event) {
+        // Passa a posição do mouse no momento exato do clique
+        const updatedMousePosition = { x: event.clientX, y: event.clientY };
+        // Chama onShoot com a posição atualizada
+        onShoot?.(updatedMousePosition);
+      } else {
+        onShoot?.();
+      }
     }
   };
 
   useEffect(() => {
     if (!isLocal) return;
 
-    const handleClick = () => handleShoot();
+    const handleClick = (event: MouseEvent) => handleShoot(event);
     window.addEventListener("click", handleClick);
     return () => window.removeEventListener("click", handleClick);
   }, [weapon?.ammo, isReloading, weapon?.lastShot, isLocal]);
-
-  // Sai do estado visual de recarga quando munição é reposta
-  useEffect(() => {
-    if (weapon && weapon.ammo > 0 && isReloading) {
-      setIsReloading(false);
-    }
-  }, [weapon?.ammo, isReloading]);
 
   if (!player.isAlive) return null;
 
@@ -125,15 +123,48 @@ export function Player({
             position: "absolute",
             width: "20px",
             height: "6px",
-            background: "#333",
+            background: isReloading
+              ? "#FF9800"
+              : weapon.ammo === 0
+              ? "#666"
+              : "#333",
             borderRadius: "3px",
             transform: `translate(-50%, -50%) rotate(${angle}rad)`,
             transformOrigin: "center",
             top: "50%",
             left: "50%",
             zIndex: 4,
+            transition: "background-color 0.3s ease",
+            boxShadow: isReloading
+              ? "0 0 8px rgba(255,152,0,0.6)"
+              : weapon.ammo === 0
+              ? "0 0 4px rgba(255,0,0,0.3)"
+              : "none",
+            opacity: weapon.ammo === 0 ? 0.7 : 1,
           }}
         />
+      )}
+
+      {/* Indicador de recarga */}
+      {isLocal && isReloading && (
+        <div
+          style={{
+            position: "absolute",
+            top: "-30px",
+            left: "50%",
+            transform: "translateX(-50%)",
+            background: "rgba(255,152,0,0.9)",
+            color: "white",
+            padding: "4px 8px",
+            borderRadius: "4px",
+            fontSize: "10px",
+            fontWeight: "bold",
+            zIndex: 5,
+            animation: "pulse 1s infinite",
+          }}
+        >
+          RECARREGANDO
+        </div>
       )}
 
       {/* Nome do jogador */}

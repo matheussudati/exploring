@@ -5,9 +5,16 @@ import { formatScore } from "../../utils/gameUtils";
 interface GameHUDProps {
   gameState: GameState;
   onInventoryItemClick?: (item: InventoryItem) => void;
+  isReloading?: boolean;
+  selectedSlot?: number;
 }
 
-export function GameHUD({ gameState, onInventoryItemClick }: GameHUDProps) {
+export function GameHUD({
+  gameState,
+  onInventoryItemClick,
+  isReloading = false,
+  selectedSlot = 0,
+}: GameHUDProps) {
   const {
     playerName,
     playerScore,
@@ -52,6 +59,8 @@ export function GameHUD({ gameState, onInventoryItemClick }: GameHUDProps) {
         <div style={{ marginTop: "8px", fontSize: "12px", opacity: 0.8 }}>
           <div>Use W/A/S/D para mover</div>
           <div>Clique para atirar</div>
+          <div>Pressione R para recarregar</div>
+          <div>Pressione Q para dropar item</div>
           <div>Fique nos círculos para capturar</div>
         </div>
       </div>
@@ -71,7 +80,13 @@ export function GameHUD({ gameState, onInventoryItemClick }: GameHUDProps) {
         }}
       >
         {/* Barra de Vida */}
-        <div style={{ marginBottom: "12px" }}>
+        <div
+          style={{
+            marginTop: "12px",
+            paddingTop: "12px",
+            borderTop: "1px solid rgba(255,255,255,0.2)",
+          }}
+        >
           <div style={{ marginBottom: "4px", fontSize: "12px", opacity: 0.8 }}>
             VIDA
           </div>
@@ -103,26 +118,107 @@ export function GameHUD({ gameState, onInventoryItemClick }: GameHUDProps) {
           </div>
         </div>
 
-        {/* Munição */}
-        {currentWeapon && (
-          <div>
-            <div
-              style={{ marginBottom: "4px", fontSize: "12px", opacity: 0.8 }}
-            >
-              MUNIÇÃO - {currentWeapon.name}
-            </div>
-            <div style={{ fontSize: "16px", fontWeight: "bold" }}>
-              {currentWeapon.ammo}/{currentWeapon.maxAmmo}
-            </div>
-            {currentWeapon.ammo === 0 && (
+        {/* Informações do Item Selecionado */}
+        {(() => {
+          const selectedItem = inventory[selectedSlot];
+          if (!selectedItem) {
+            return (
               <div
-                style={{ fontSize: "10px", color: "#FF9800", marginTop: "2px" }}
+                style={{ fontSize: "12px", opacity: 0.6, fontStyle: "italic" }}
               >
-                Recarregando...
+                Slot vazio
               </div>
-            )}
-          </div>
-        )}
+            );
+          }
+
+          return (
+            <div>
+              {/* Nome do Item */}
+              <div
+                style={{ marginBottom: "4px", fontSize: "12px", opacity: 0.8 }}
+              >
+                {selectedItem.name.toUpperCase()}
+              </div>
+
+              {/* Descrição do Item */}
+              <div
+                style={{ fontSize: "10px", opacity: 0.7, marginBottom: "8px" }}
+              >
+                {selectedItem.description}
+              </div>
+
+              {/* Informações específicas baseadas no tipo */}
+              {selectedItem.type === "weapon" && (
+                <>
+                  <div style={{ fontSize: "16px", fontWeight: "bold" }}>
+                    {currentWeapon?.ammo || 0}/{currentWeapon?.maxAmmo || 0}
+                  </div>
+                  {isReloading && (
+                    <div
+                      style={{
+                        fontSize: "10px",
+                        color: "#FF9800",
+                        marginTop: "2px",
+                      }}
+                    >
+                      Recarregando...
+                    </div>
+                  )}
+                  {!isReloading && currentWeapon?.ammo === 0 && (
+                    <div
+                      style={{
+                        fontSize: "10px",
+                        color: "#F44336",
+                        marginTop: "2px",
+                        fontWeight: "bold",
+                      }}
+                    >
+                      Pressione R para recarregar
+                    </div>
+                  )}
+                </>
+              )}
+
+              {selectedItem.type === "health" && (
+                <div style={{ fontSize: "12px", color: "#4CAF50" }}>
+                  Quantidade: {selectedItem.quantity}/{selectedItem.maxQuantity}
+                </div>
+              )}
+
+              {selectedItem.type === "ammo" && (
+                <div style={{ fontSize: "12px", color: "#FF9800" }}>
+                  Munição: {selectedItem.quantity}/{selectedItem.maxQuantity}
+                </div>
+              )}
+
+              {selectedItem.type === "powerup" && (
+                <div style={{ fontSize: "12px", color: "#9C27B0" }}>
+                  Power-ups: {selectedItem.quantity}/{selectedItem.maxQuantity}
+                </div>
+              )}
+            </div>
+          );
+        })()}
+      </div>
+
+      {/* Indicador de Slot Selecionado */}
+      <div
+        style={{
+          position: "absolute",
+          left: "50%",
+          bottom: "80px",
+          transform: "translateX(-50%)",
+          zIndex: 10,
+          background: "rgba(0,0,0,0.8)",
+          color: "#FFD700",
+          padding: "8px 16px",
+          borderRadius: "20px",
+          fontSize: "14px",
+          fontWeight: "bold",
+          border: "2px solid #FFD700",
+        }}
+      >
+        Slot {selectedSlot + 1} Selecionado
       </div>
 
       {/* Barra de Itens - Centro Inferior */}
@@ -142,16 +238,21 @@ export function GameHUD({ gameState, onInventoryItemClick }: GameHUDProps) {
       >
         {Array.from({ length: 5 }, (_, index) => {
           const item = inventory[index];
+          const isSelected = index === selectedSlot;
           return (
             <div
               key={index}
               style={{
                 width: "48px",
                 height: "48px",
-                background: item
+                background: isSelected
+                  ? "rgba(255,215,0,0.3)" // Dourado para slot selecionado
+                  : item
                   ? "rgba(255,255,255,0.1)"
                   : "rgba(255,255,255,0.05)",
-                border: item
+                border: isSelected
+                  ? "3px solid #FFD700" // Borda dourada para slot selecionado
+                  : item
                   ? "2px solid rgba(255,255,255,0.3)"
                   : "2px solid rgba(255,255,255,0.1)",
                 borderRadius: "6px",
@@ -161,6 +262,8 @@ export function GameHUD({ gameState, onInventoryItemClick }: GameHUDProps) {
                 cursor: item ? "pointer" : "default",
                 position: "relative",
                 transition: "all 0.2s ease",
+                transform: isSelected ? "scale(1.05)" : "scale(1)",
+                boxShadow: isSelected ? "0 0 10px rgba(255,215,0,0.5)" : "none",
               }}
               onClick={() => item && onInventoryItemClick?.(item)}
               onMouseEnter={(e) => {
@@ -209,7 +312,8 @@ export function GameHUD({ gameState, onInventoryItemClick }: GameHUDProps) {
                 <div
                   style={{
                     fontSize: "12px",
-                    color: "rgba(255,255,255,0.3)",
+                    color: isSelected ? "#FFD700" : "rgba(255,255,255,0.3)",
+                    fontWeight: isSelected ? "bold" : "normal",
                   }}
                 >
                   {index + 1}

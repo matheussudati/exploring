@@ -54,6 +54,14 @@ export interface HitEffect {
   type: 'hit' | 'capture' | 'death';
 }
 
+export interface DroppedItem {
+  id: string;
+  item: InventoryItem;
+  position: LatLng;
+  timestamp: number;
+  weaponData?: Weapon; // Dados específicos da arma quando for uma arma dropada
+}
+
 export interface InventoryItem {
   id: string;
   name: string;
@@ -78,6 +86,7 @@ export interface GameState {
   projectiles: Projectile[];
   territories: Territory[];
   hitEffects: HitEffect[];
+  droppedItems: DroppedItem[];
   inventory: InventoryItem[];
   currentWeapon: Weapon | null;
   mousePosition: { x: number; y: number };

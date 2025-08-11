@@ -24,20 +24,67 @@ a:hover {
 
 html, body, #root {
   height: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
 }
 
 body {
   margin: 0;
-  display: flex;
-  place-items: center;
+  padding: 0;
   min-width: 320px;
   min-height: 100vh;
+  overflow: hidden;
+  position: fixed;
+  width: 100%;
+  height: 100%;
 }
+
 #root {
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 2rem;
-  text-align: center;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  position: relative;
+}
+
+/* Garantir que o OpenLayers não cause scroll */
+.ol-viewport {
+  overflow: hidden !important;
+}
+
+.ol-map {
+  overflow: hidden !important;
+}
+
+.ol-control {
+  overflow: hidden !important;
+}
+
+.ol-layers {
+  overflow: hidden !important;
+}
+
+/* Prevenir scroll em todos os elementos do jogo */
+* {
+  box-sizing: border-box;
+}
+
+/* Garantir que não haja scroll em nenhum elemento */
+html, body, #root, div {
+  overflow-x: hidden !important;
+  overflow-y: hidden !important;
+}
+
+/* Estilos específicos para o jogo */
+.game-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
 }
 
 .logo {
@@ -84,6 +131,18 @@ body {
   100% {
     transform: translate(-50%, -50%) scale(2);
     opacity: 0;
+  }
+}
+
+@keyframes pulse {
+  0% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+  100% {
+    opacity: 1;
   }
 }
 
