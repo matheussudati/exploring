@@ -37,11 +37,9 @@ export function Player({
       Date.now() - weapon.lastShot > weapon.fireRate
     ) {
       onShoot?.();
-    } else if (weapon && weapon.ammo === 0 && !isReloading) {
+    } else if (weapon && weapon.ammo === 0) {
+      // Sem munição: aguarda recarga automática controlada pelo MapGame
       setIsReloading(true);
-      setTimeout(() => {
-        setIsReloading(false);
-      }, weapon.reloadTime);
     }
   };
 
@@ -52,6 +50,13 @@ export function Player({
     window.addEventListener("click", handleClick);
     return () => window.removeEventListener("click", handleClick);
   }, [weapon?.ammo, isReloading, weapon?.lastShot, isLocal]);
+
+  // Sai do estado visual de recarga quando munição é reposta
+  useEffect(() => {
+    if (weapon && weapon.ammo > 0 && isReloading) {
+      setIsReloading(false);
+    }
+  }, [weapon?.ammo, isReloading]);
 
   if (!player.isAlive) return null;
 

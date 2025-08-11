@@ -65,7 +65,7 @@ export function useGameLoop({
         setGameState((prev) => {
           const updatedProjectiles = prev.projectiles
             .map((projectile) => {
-              const distanceThisFrame = projectile.speed * dt;
+              const distanceThisFrame = PROJECTILE_SPEED_METERS_PER_SECOND * dt;
               const newDistanceTraveled = projectile.distanceTraveled + distanceThisFrame;
 
               if (newDistanceTraveled >= projectile.maxDistance) {

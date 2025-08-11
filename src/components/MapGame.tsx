@@ -10,6 +10,7 @@ import { OtherPlayer } from "./game/OtherPlayer";
 import { GameHUD } from "./ui/GameHUD";
 import { GameMenu } from "./ui/GameMenu";
 import { DeathModal } from "./ui/DeathModal";
+import { Projectile as ProjectileDot } from "./game/Projectile";
 import { useGameLoop } from "../hooks/useGameLoop";
 import { useSocketConnection } from "../hooks/useSocketConnection";
 import type {
@@ -30,6 +31,7 @@ import {
   FALLBACK_START_POSITION,
   TERRITORY_COLORS,
   WEAPONS,
+  PROJECTILE_SPEED_METERS_PER_SECOND,
 } from "../constants/game";
 import { generateRandomPosition, calculateDistance } from "../utils/gameUtils";
 import "ol/ol.css";
@@ -78,6 +80,10 @@ export default function MapGame(): React.ReactElement {
     isDead: false,
     respawnTime: 0,
   });
+
+  // Estado de recarga da arma
+  const [isReloadingWeapon, setIsReloadingWeapon] = useState(false);
+  const reloadTimeoutRef = useRef<number | null>(null);
 
   const pressedKeys = useRef({ w: false, a: false, s: false, d: false });
   const lastEmittedPosition = useRef<{ lat: number; lng: number } | null>(null);
@@ -279,6 +285,36 @@ export default function MapGame(): React.ReactElement {
     return () => clearInterval(captureInterval);
   }, [gameState.center, gameState.playerId]);
 
+  // Controle de recarga da arma (centralizado)
+  useEffect(() => {
+    const weapon = gameState.currentWeapon;
+    if (!weapon) return;
+    if (weapon.ammo === 0 && !isReloadingWeapon) {
+      setIsReloadingWeapon(true);
+      if (reloadTimeoutRef.current) {
+        clearTimeout(reloadTimeoutRef.current);
+      }
+      reloadTimeoutRef.current = window.setTimeout(() => {
+        setGameState((prev) => ({
+          ...prev,
+          currentWeapon: prev.currentWeapon
+            ? { ...prev.currentWeapon, ammo: prev.currentWeapon.maxAmmo }
+            : prev.currentWeapon,
+        }));
+        setIsReloadingWeapon(false);
+        reloadTimeoutRef.current = null;
+      }, weapon.reloadTime);
+    }
+
+    return () => {
+      // limpa timeout ao trocar arma ou desmontar
+      if (reloadTimeoutRef.current) {
+        clearTimeout(reloadTimeoutRef.current);
+        reloadTimeoutRef.current = null;
+      }
+    };
+  }, [gameState.currentWeapon?.ammo, gameState.currentWeapon?.reloadTime, isReloadingWeapon, setGameState]);
+
   // Sistema de morte e respawn
   useEffect(() => {
     if (!gameState.isAlive && !deathState.isDead) {
@@ -344,8 +380,9 @@ export default function MapGame(): React.ReactElement {
       position: { ...gameState.center },
       direction: { x: directionX, y: directionY },
       distanceTraveled: 0,
-      maxDistance: gameState.currentWeapon.range,
-      speed: 300,
+      // 3 segundos
+      maxDistance: PROJECTILE_SPEED_METERS_PER_SECOND * 3,
+      speed: PROJECTILE_SPEED_METERS_PER_SECOND,
       timestamp: Date.now(),
       ownerId: gameState.playerId,
       damage: gameState.currentWeapon.damage,
@@ -434,6 +471,15 @@ export default function MapGame(): React.ReactElement {
         <OtherPlayer
           key={player.id}
           player={player}
+          currentCenter={gameState.center}
+        />
+      ))}
+
+      {/* Projéteis */}
+      {gameState.projectiles.map((p) => (
+        <ProjectileDot
+          key={p.id}
+          projectile={p}
           currentCenter={gameState.center}
         />
       ))}
