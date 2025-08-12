@@ -1,7 +1,6 @@
 import React, { useMemo } from "react";
 import type { InventoryItem, Weapon } from "../../types/game";
 import { latLngToMeters } from "../../utils/gameUtils";
-import { MAP_ZOOM } from "../../constants/game";
 
 interface DroppedItemProps {
   item: InventoryItem;
@@ -17,7 +16,7 @@ export function DroppedItem({
   weaponData,
 }: DroppedItemProps) {
   // Memoiza o cálculo de posição para evitar recálculos desnecessários
-  const { screenX, screenY, isVisible } = useMemo(() => {
+  const { pixelX, pixelY, isVisible } = useMemo(() => {
     // Calcula a diferença entre a posição do item e o centro atual
     const deltaLat = position.lat - currentCenter.lat;
     const deltaLng = position.lng - currentCenter.lng;
@@ -35,45 +34,24 @@ export function DroppedItem({
     const pixelX = metersEast / metersPerPixel;
     const pixelY = -metersNorth / metersPerPixel; // Negativo porque Y cresce para baixo
 
-    // Calcula a posição na tela (centro + offset)
-    const screenX = window.innerWidth / 2 + pixelX;
-    const screenY = window.innerHeight / 2 + pixelY;
+    // Verifica se o item está visível na tela (usando a mesma lógica do OtherPlayer)
+    const visible = !(
+      Math.abs(pixelX) > window.innerWidth ||
+      Math.abs(pixelY) > window.innerHeight
+    );
 
-    // Debug: log das posições (apenas quando necessário)
-    if (Math.abs(pixelX) > 1000 || Math.abs(pixelY) > 1000) {
-      console.log(`📍 Item ${item.name} - Posição muito longe:`, {
-        itemPosition: position,
-        currentCenter,
-        metersNorth,
-        metersEast,
-        pixelX,
-        pixelY,
-        screenX,
-        screenY,
+    // Debug simplificado
+    if (Math.abs(pixelX) > 500 || Math.abs(pixelY) > 500) {
+      console.log(`📍 Item ${item.name} longe:`, {
+        deltaLat: deltaLat.toFixed(8),
+        deltaLng: deltaLng.toFixed(8),
+        pixelX: pixelX.toFixed(2),
+        pixelY: pixelY.toFixed(2),
       });
     }
 
-    // Log para verificar se o item está se movendo
-    console.log(`📍 Item ${item.name} - Posição fixa:`, {
-      deltaLat: deltaLat.toFixed(8),
-      deltaLng: deltaLng.toFixed(8),
-      metersNorth: metersNorth.toFixed(2),
-      metersEast: metersEast.toFixed(2),
-      pixelX: pixelX.toFixed(2),
-      pixelY: pixelY.toFixed(2),
-      screenX: screenX.toFixed(2),
-      screenY: screenY.toFixed(2),
-    });
-
-    // Verifica se o item está visível na tela (com margem de 100px)
-    const visible =
-      screenX >= -100 &&
-      screenX <= window.innerWidth + 100 &&
-      screenY >= -100 &&
-      screenY <= window.innerHeight + 100;
-
-    return { screenX, screenY, isVisible: visible };
-  }, [position.lng, position.lat, currentCenter.lng, currentCenter.lat]);
+    return { pixelX, pixelY, isVisible: visible };
+  }, [position.lng, position.lat, currentCenter.lng, currentCenter.lat, item.name]);
 
   if (!isVisible) {
     return null;
@@ -83,13 +61,15 @@ export function DroppedItem({
     <div
       style={{
         position: "absolute",
-        left: screenX - 24, // Centraliza o ícone
-        top: screenY - 24,
+        left: `calc(50% + ${pixelX}px)`,
+        top: `calc(50% + ${pixelY}px)`,
+        transform: "translate(-50%, -50%)",
         zIndex: 5,
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
         gap: "4px",
+        pointerEvents: "none",
       }}
     >
       {/* Ícone do item */}

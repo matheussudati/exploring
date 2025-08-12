@@ -41,7 +41,7 @@ import {
   WEAPONS,
   PROJECTILE_SPEED_METERS_PER_SECOND,
 } from "../constants/game";
-import { generateRandomPosition, calculateDistance } from "../utils/gameUtils";
+import { generateRandomPosition, calculateDistance, screenToGeographic } from "../utils/gameUtils";
 import "ol/ol.css";
 
 const containerStyle: React.CSSProperties = {
@@ -612,13 +612,14 @@ export default function MapGame(): React.ReactElement {
   }, []);
 
   // Função de drop de item
-  const handleDropItem = useCallback(() => {
+  const handleDropItem = useCallback((dropPosition?: { x: number; y: number }) => {
     console.log(`🎯 Tentativa de drop - Slot selecionado: ${selectedSlot + 1}`);
     console.log("🔍 Estado atual:", {
       isAlive: gameState.isAlive,
       inventory: gameState.inventory,
       selectedSlot,
       inventoryLength: gameState.inventory?.length,
+      dropPosition,
     });
 
     if (!gameState.isAlive) {
@@ -675,11 +676,26 @@ export default function MapGame(): React.ReactElement {
       itemId: selectedItem.id,
     });
 
-    // Cria o item dropado na posição atual do jogador
+    // SEMPRE usa a posição atual do jogador para garantir precisão
+    const currentPlayerPosition = {
+      lat: gameState.center.lat,
+      lng: gameState.center.lng,
+    };
+    
+    console.log("📍 Drop na posição EXATA do jogador:", {
+      lat: currentPlayerPosition.lat.toFixed(8),
+      lng: currentPlayerPosition.lng.toFixed(8),
+      dropType: dropPosition ? "Shift+Clique" : "Tecla Q"
+    });
+
+    // Sempre usa a posição do jogador para garantir que o item apareça onde ele está
+    const finalPosition = currentPlayerPosition;
+
+    // Cria o item dropado na posição exata do jogador
     const droppedItem: DroppedItem = {
       id: `dropped_${Date.now()}_${Math.random()}`,
       item: { ...selectedItem },
-      position: { ...gameState.center },
+      position: finalPosition,
       timestamp: Date.now(),
       // Se for uma arma, inclui os dados específicos da arma
       weaponData:
@@ -687,6 +703,19 @@ export default function MapGame(): React.ReactElement {
           ? gameState.currentWeapon || undefined
           : undefined,
     };
+
+    console.log("✅ Item criado com posição:", {
+      itemId: droppedItem.id,
+      itemName: droppedItem.item.name,
+      savedPosition: {
+        lat: droppedItem.position.lat.toFixed(8),
+        lng: droppedItem.position.lng.toFixed(8)
+      },
+      jogadorAtual: {
+        lat: gameState.center.lat.toFixed(8),
+        lng: gameState.center.lng.toFixed(8)
+      }
+    });
 
     // Remove o item do inventário de forma segura
     setGameState((prev) => {
@@ -715,7 +744,29 @@ export default function MapGame(): React.ReactElement {
     });
 
     console.log(`✅ Item ${selectedItem.name} dropado com sucesso!`);
-  }, [gameState.isAlive, gameState.inventory, gameState.center, selectedSlot]);
+  }, [gameState.isAlive, gameState.inventory, gameState.center, selectedSlot, gameState.currentWeapon]);
+
+  // Sistema de drop com clique
+  useEffect(() => {
+    if (!gameState.isConnected) return;
+
+    const handleClickDrop = (e: MouseEvent) => {
+      // Verifica se Shift está pressionado
+      if (e.shiftKey) {
+        console.log("🖱️ Shift+clique detectado para drop");
+        console.log("📍 Coordenadas do clique:", { x: e.clientX, y: e.clientY });
+        console.log("📍 Posição atual do jogador:", gameState.center);
+        
+        handleDropItem({ x: e.clientX, y: e.clientY });
+        e.preventDefault();
+        e.stopPropagation(); // Impede que outros eventos de clique sejam executados
+      }
+    };
+
+    // Adiciona o listener com capture=true para ter prioridade
+    window.addEventListener("click", handleClickDrop, true);
+    return () => window.removeEventListener("click", handleClickDrop, true);
+  }, [gameState.isConnected, handleDropItem, gameState.center]);
 
   // Função de disparo melhorada - direção precisa do mouse
   const handleShoot = (mousePosition?: { x: number; y: number }) => {

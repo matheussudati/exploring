@@ -51,7 +51,12 @@ export function Player({
   useEffect(() => {
     if (!isLocal) return;
 
-    const handleClick = (event: MouseEvent) => handleShoot(event);
+    const handleClick = (event: MouseEvent) => {
+      // Não atira se Shift estiver pressionado (para evitar conflito com drop)
+      if (!event.shiftKey) {
+        handleShoot(event);
+      }
+    };
     window.addEventListener("click", handleClick);
     return () => window.removeEventListener("click", handleClick);
   }, [weapon?.ammo, isReloading, weapon?.lastShot, isLocal]);
