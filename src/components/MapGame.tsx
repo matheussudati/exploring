@@ -114,6 +114,9 @@ export default function MapGame(): React.ReactElement {
   // Estado do slot selecionado no inventário
   const [selectedSlot, setSelectedSlot] = useState(0); // 0-4 para slots 1-5
 
+  // Estado de notificação de inventário cheio
+  const [inventoryFullNotification, setInventoryFullNotification] = useState(false);
+
   const pressedKeys = useRef({ w: false, a: false, s: false, d: false });
   const lastEmittedPosition = useRef<{ lat: number; lng: number } | null>(null);
 
@@ -236,6 +239,275 @@ export default function MapGame(): React.ReactElement {
     );
   }, []);
 
+  // Função de recarga instantânea para teste
+  const handleInstantReload = useCallback(() => {
+    console.log("⚡ Recarga instantânea!");
+    const weapon = gameState.currentWeapon;
+    if (weapon && gameState.isAlive && weapon.ammo < weapon.maxAmmo) {
+      setGameState((prev) => ({
+        ...prev,
+        currentWeapon: {
+          ...prev.currentWeapon!,
+          ammo: prev.currentWeapon!.maxAmmo,
+        },
+      }));
+      console.log("✅ Recarga instantânea concluída!");
+    }
+  }, [gameState.currentWeapon, gameState.isAlive]);
+
+  // Função de drop de item
+  const handleDropItem = useCallback((dropPosition?: { x: number; y: number }) => {
+    console.log("🎯 Tentativa de drop");
+    console.log("🔍 Estado atual:", {
+      isAlive: gameState.isAlive,
+      inventory: gameState.inventory,
+      selectedSlot,
+      inventoryLength: gameState.inventory?.length,
+      dropPosition,
+      hasCurrentWeapon: !!gameState.currentWeapon,
+    });
+
+    if (!gameState.isAlive) {
+      console.log("❌ Jogador morto, não pode dropar itens!");
+      return;
+    }
+
+    // Se não tem posição de drop (tecla Q), sempre dropa a arma atual
+    let itemToDrop;
+    let weaponData;
+    let isCurrentWeapon = false;
+
+    if (!dropPosition) {
+      // Tecla Q pressionada - dropa a arma atual
+      if (!gameState.currentWeapon) {
+        console.log("❌ Nenhuma arma equipada para dropar!");
+        return;
+      }
+      
+      // Encontra a arma no inventário
+      const weaponInInventory = gameState.inventory.find(item => item.type === "weapon");
+      if (!weaponInInventory) {
+        console.log("❌ Arma atual não encontrada no inventário!");
+        return;
+      }
+      
+      itemToDrop = weaponInInventory;
+      weaponData = gameState.currentWeapon;
+      isCurrentWeapon = true;
+      console.log("🔫 Dropando arma atual:", itemToDrop.name);
+    } else {
+      // Shift+click - dropa o item do slot selecionado
+      if (selectedSlot < 0 || selectedSlot >= 5) {
+        console.log("❌ Slot inválido selecionado!");
+        return;
+      }
+
+      const selectedItem = getSelectedItem();
+      if (!selectedItem) {
+        console.log(`❌ Slot ${selectedSlot + 1} não tem item para dropar!`);
+        return;
+      }
+      
+      itemToDrop = selectedItem;
+      weaponData = selectedItem.type === "weapon" ? gameState.currentWeapon : undefined;
+      console.log(`📦 Dropando item do slot ${selectedSlot + 1}:`, itemToDrop.name);
+    }
+
+    // Validação do inventário
+    if (!gameState.inventory || gameState.inventory.length === 0) {
+      console.log("❌ Inventário vazio!");
+      return;
+    }
+
+    // Log dos dados da arma se for uma arma
+    if (itemToDrop.type === "weapon") {
+      console.log("🔫 Dados da arma sendo dropada:", {
+        currentWeapon: gameState.currentWeapon,
+        ammo: gameState.currentWeapon?.ammo,
+        maxAmmo: gameState.currentWeapon?.maxAmmo,
+        type: gameState.currentWeapon?.type,
+      });
+    }
+
+    // Validação final: confirma que estamos dropando o item correto
+    console.log("✅ Validação final:", {
+      itemParaDropar: itemToDrop.name,
+      itemId: itemToDrop.id,
+      isCurrentWeapon,
+    });
+
+    // Remove o item do inventário e cria o drop na posição EXATA E ATUAL do jogador
+    setGameState((prev) => {
+      // CAPTURA A POSIÇÃO ATUAL DO JOGADOR NO MOMENTO EXATO DO DROP
+      const currentPlayerPosition = {
+        lat: prev.center.lat,
+        lng: prev.center.lng,
+      };
+      
+      console.log("📍 Drop na posição EXATA do jogador:", {
+        lat: currentPlayerPosition.lat.toFixed(8),
+        lng: currentPlayerPosition.lng.toFixed(8),
+        dropType: dropPosition ? "Shift+Clique" : "Tecla Q"
+      });
+
+      // Cria o item dropado na posição exata do jogador
+      const droppedItem: DroppedItem = {
+        id: `dropped_${Date.now()}_${Math.random()}`,
+        item: { ...itemToDrop },
+        position: currentPlayerPosition, // Usa a posição atual capturada dentro do setState
+        timestamp: Date.now(),
+        // Se for uma arma, inclui os dados específicos da arma
+        weaponData: weaponData,
+      };
+
+      console.log("✅ Item criado com posição:", {
+        itemId: droppedItem.id,
+        itemName: droppedItem.item.name,
+        savedPosition: {
+          lat: droppedItem.position.lat.toFixed(8),
+          lng: droppedItem.position.lng.toFixed(8)
+        },
+        jogadorAtual: {
+          lat: prev.center.lat.toFixed(8),
+          lng: prev.center.lng.toFixed(8)
+        }
+      });
+
+      // Cria uma cópia do inventário
+      const newInventory = [...prev.inventory];
+      let newCurrentWeapon = prev.currentWeapon;
+
+      if (isCurrentWeapon) {
+        // Se está dropando a arma atual (tecla Q)
+        const weaponIndex = newInventory.findIndex(item => item.type === "weapon");
+        if (weaponIndex !== -1) {
+          newInventory.splice(weaponIndex, 1);
+          newCurrentWeapon = null; // Remove a arma atual
+          
+          console.log("🔍 Debug - Arma atual removida:", {
+            removedItem: itemToDrop.name,
+            newInventoryLength: newInventory.length,
+            droppedItemsCount: prev.droppedItems.length + 1,
+          });
+        } else {
+          console.log("❌ Erro: Arma não encontrada no inventário!");
+          return prev;
+        }
+      } else {
+        // Se está dropando um item do slot selecionado (Shift+click)
+        if (selectedSlot < newInventory.length && newInventory[selectedSlot]) {
+          const removedItem = newInventory[selectedSlot];
+          newInventory.splice(selectedSlot, 1);
+
+          // Se o item removido era uma arma, remove também a currentWeapon
+          if (removedItem.type === "weapon") {
+            newCurrentWeapon = null;
+          }
+
+          console.log("🔍 Debug - Item do slot removido:", {
+            removedItem: removedItem.name,
+            slot: selectedSlot + 1,
+            newInventoryLength: newInventory.length,
+            droppedItemsCount: prev.droppedItems.length + 1,
+          });
+        } else {
+          console.log("❌ Erro: Item não encontrado no slot para remoção!");
+          return prev; // Retorna o estado anterior sem mudanças
+        }
+      }
+
+      return {
+        ...prev,
+        inventory: newInventory,
+        currentWeapon: newCurrentWeapon,
+        droppedItems: [...prev.droppedItems, droppedItem],
+      };
+    });
+
+    console.log(`✅ Item ${itemToDrop.name} dropado com sucesso!`);
+  }, [gameState.isAlive, gameState.inventory, gameState.center, selectedSlot, gameState.currentWeapon]);
+
+  // Função para coletar item dropado
+  const handleCollectItem = useCallback((itemId: string) => {
+    console.log(`🎯 Tentativa de coleta do item: ${itemId}`);
+    
+    // Encontra o item dropado
+    const droppedItem = gameState.droppedItems.find(item => item.id === itemId);
+    if (!droppedItem) {
+      console.log("❌ Item não encontrado!");
+      return;
+    }
+
+    // Calcula distância para verificar se está próximo
+    const distance = calculateDistance(gameState.center, droppedItem.position);
+    if (distance > 20) {
+      console.log(`❌ Muito longe para coletar! Distância: ${distance.toFixed(1)}m`);
+      return;
+    }
+
+    // Verifica se há slot disponível no inventário (máximo 5 slots)
+    if (gameState.inventory.length >= 5) {
+      console.log("❌ Inventário cheio!");
+      setInventoryFullNotification(true);
+      setTimeout(() => setInventoryFullNotification(false), 3000); // Remove após 3 segundos
+      return;
+    }
+
+    console.log(`✅ Coletando item: ${droppedItem.item.name}`);
+
+    // Adiciona item ao inventário e remove da lista de itens dropados
+    setGameState((prev) => {
+      const newInventory = [...prev.inventory, droppedItem.item];
+      const newDroppedItems = prev.droppedItems.filter(item => item.id !== itemId);
+      
+      // Se o item coletado for uma arma e não há arma atual, equipa ela
+      let newCurrentWeapon = prev.currentWeapon;
+      if (droppedItem.item.type === "weapon" && !prev.currentWeapon && droppedItem.weaponData) {
+        newCurrentWeapon = droppedItem.weaponData;
+      }
+
+      console.log("📦 Item adicionado ao inventário:", {
+        itemName: droppedItem.item.name,
+        newInventorySize: newInventory.length,
+        remainingDroppedItems: newDroppedItems.length,
+      });
+
+      return {
+        ...prev,
+        inventory: newInventory,
+        currentWeapon: newCurrentWeapon,
+        droppedItems: newDroppedItems,
+      };
+    });
+  }, [gameState.droppedItems, gameState.center, gameState.inventory]);
+
+  // Função para coletar o item mais próximo quando pressionar E
+  const handleCollectNearestItem = useCallback(() => {
+    if (!gameState.isAlive) {
+      console.log("❌ Jogador morto, não pode coletar itens!");
+      return;
+    }
+
+    // Encontra todos os itens dentro do raio de 20 metros
+    const nearbyItems = gameState.droppedItems
+      .map(item => ({
+        ...item,
+        distance: calculateDistance(gameState.center, item.position)
+      }))
+      .filter(item => item.distance <= 20)
+      .sort((a, b) => a.distance - b.distance); // Ordena por distância
+
+    if (nearbyItems.length === 0) {
+      console.log("❌ Nenhum item próximo para coletar!");
+      return;
+    }
+
+    // Coleta o item mais próximo
+    const nearestItem = nearbyItems[0];
+    console.log(`🎯 Coletando item mais próximo: ${nearestItem.item.name} (${nearestItem.distance.toFixed(1)}m)`);
+    handleCollectItem(nearestItem.id);
+  }, [gameState.droppedItems, gameState.center, gameState.isAlive, handleCollectItem]);
+
   // Controles de teclado
   useEffect(() => {
     if (!gameState.isConnected) return;
@@ -312,6 +584,11 @@ export default function MapGame(): React.ReactElement {
         console.log("📦 Tecla Q pressionada - tentando dropar item");
         handleDropItem();
         e.preventDefault();
+      } else if (key === "e") {
+        // Coletar item próximo
+        console.log("🎯 Tecla E pressionada - tentando coletar item");
+        handleCollectNearestItem();
+        e.preventDefault();
       } else if (key >= "1" && key <= "5") {
         // Seleção de slots do inventário (1-5)
         const slotIndex = parseInt(key) - 1; // Converte 1-5 para 0-4
@@ -340,6 +617,9 @@ export default function MapGame(): React.ReactElement {
     gameState.currentWeapon,
     gameState.isAlive,
     isReloadingWeapon,
+    handleCollectNearestItem,
+    handleInstantReload,
+    handleDropItem,
   ]);
 
   // Inicializa a posição do mouse no centro da tela
@@ -542,22 +822,6 @@ export default function MapGame(): React.ReactElement {
     }
   };
 
-  // Função de recarga instantânea para teste
-  const handleInstantReload = useCallback(() => {
-    console.log("⚡ Recarga instantânea!");
-    const weapon = gameState.currentWeapon;
-    if (weapon && gameState.isAlive && weapon.ammo < weapon.maxAmmo) {
-      setGameState((prev) => ({
-        ...prev,
-        currentWeapon: {
-          ...prev.currentWeapon!,
-          ammo: prev.currentWeapon!.maxAmmo,
-        },
-      }));
-      console.log("✅ Recarga instantânea concluída!");
-    }
-  }, [gameState.currentWeapon, gameState.isAlive]);
-
   // Sistema de morte e respawn
   useEffect(() => {
     if (!gameState.isAlive && !deathState.isDead) {
@@ -610,141 +874,6 @@ export default function MapGame(): React.ReactElement {
     }, 100);
     return () => clearInterval(cleanupInterval);
   }, []);
-
-  // Função de drop de item
-  const handleDropItem = useCallback((dropPosition?: { x: number; y: number }) => {
-    console.log(`🎯 Tentativa de drop - Slot selecionado: ${selectedSlot + 1}`);
-    console.log("🔍 Estado atual:", {
-      isAlive: gameState.isAlive,
-      inventory: gameState.inventory,
-      selectedSlot,
-      inventoryLength: gameState.inventory?.length,
-      dropPosition,
-    });
-
-    if (!gameState.isAlive) {
-      console.log("❌ Jogador morto, não pode dropar itens!");
-      return;
-    }
-
-    // Validação robusta do slot selecionado
-    if (selectedSlot < 0 || selectedSlot >= 5) {
-      console.log("❌ Slot inválido selecionado!");
-      return;
-    }
-
-    // Verifica se o slot selecionado tem um item antes de prosseguir
-    const selectedItem = getSelectedItem();
-    console.log("🔍 Item encontrado:", selectedItem);
-
-    if (!selectedItem) {
-      console.log(`❌ Slot ${selectedSlot + 1} não tem item para dropar!`);
-      return;
-    }
-
-    // Validação do inventário
-    if (!gameState.inventory || gameState.inventory.length === 0) {
-      console.log("❌ Inventário vazio!");
-      return;
-    }
-
-    // Validação adicional: confirma que o item está no slot correto
-    console.log("🔍 Debug - Validação do item:", {
-      selectedSlot: selectedSlot + 1,
-      selectedItem: selectedItem.name,
-      selectedId: selectedItem.id,
-    });
-
-    console.log(
-      `📦 Dropando item: ${selectedItem.name} do slot ${selectedSlot + 1}`
-    );
-
-    // Log dos dados da arma se for uma arma
-    if (selectedItem.type === "weapon") {
-      console.log("🔫 Dados da arma sendo dropada:", {
-        currentWeapon: gameState.currentWeapon,
-        ammo: gameState.currentWeapon?.ammo,
-        maxAmmo: gameState.currentWeapon?.maxAmmo,
-        type: gameState.currentWeapon?.type,
-      });
-    }
-
-    // Validação final: confirma que estamos dropando o item correto
-    console.log("✅ Validação final:", {
-      slotSelecionado: selectedSlot + 1,
-      itemParaDropar: selectedItem.name,
-      itemId: selectedItem.id,
-    });
-
-    // SEMPRE usa a posição atual do jogador para garantir precisão
-    const currentPlayerPosition = {
-      lat: gameState.center.lat,
-      lng: gameState.center.lng,
-    };
-    
-    console.log("📍 Drop na posição EXATA do jogador:", {
-      lat: currentPlayerPosition.lat.toFixed(8),
-      lng: currentPlayerPosition.lng.toFixed(8),
-      dropType: dropPosition ? "Shift+Clique" : "Tecla Q"
-    });
-
-    // Sempre usa a posição do jogador para garantir que o item apareça onde ele está
-    const finalPosition = currentPlayerPosition;
-
-    // Cria o item dropado na posição exata do jogador
-    const droppedItem: DroppedItem = {
-      id: `dropped_${Date.now()}_${Math.random()}`,
-      item: { ...selectedItem },
-      position: finalPosition,
-      timestamp: Date.now(),
-      // Se for uma arma, inclui os dados específicos da arma
-      weaponData:
-        selectedItem.type === "weapon"
-          ? gameState.currentWeapon || undefined
-          : undefined,
-    };
-
-    console.log("✅ Item criado com posição:", {
-      itemId: droppedItem.id,
-      itemName: droppedItem.item.name,
-      savedPosition: {
-        lat: droppedItem.position.lat.toFixed(8),
-        lng: droppedItem.position.lng.toFixed(8)
-      },
-      jogadorAtual: {
-        lat: gameState.center.lat.toFixed(8),
-        lng: gameState.center.lng.toFixed(8)
-      }
-    });
-
-    // Remove o item do inventário de forma segura
-    setGameState((prev) => {
-      // Cria uma cópia do inventário
-      const newInventory = [...prev.inventory];
-
-      // Verifica se o item existe no slot antes de tentar remover
-      if (selectedSlot < newInventory.length && newInventory[selectedSlot]) {
-        newInventory.splice(selectedSlot, 1);
-
-        console.log("🔍 Debug - Item removido com sucesso:", {
-          removedItem: selectedItem.name,
-          newInventoryLength: newInventory.length,
-          droppedItemsCount: prev.droppedItems.length + 1,
-        });
-
-        return {
-          ...prev,
-          inventory: newInventory,
-          droppedItems: [...prev.droppedItems, droppedItem],
-        };
-      } else {
-        console.log("❌ Erro: Item não encontrado no slot para remoção!");
-        return prev; // Retorna o estado anterior sem mudanças
-      }
-    });
-
-    console.log(`✅ Item ${selectedItem.name} dropado com sucesso!`);
-  }, [gameState.isAlive, gameState.inventory, gameState.center, selectedSlot, gameState.currentWeapon]);
 
   // Sistema de drop com clique
   useEffect(() => {
@@ -1083,10 +1212,12 @@ export default function MapGame(): React.ReactElement {
       {gameState.droppedItems.map((droppedItem) => (
         <DroppedItemComponent
           key={droppedItem.id}
+          itemId={droppedItem.id}
           item={droppedItem.item}
           position={droppedItem.position}
           currentCenter={gameState.center}
           weaponData={droppedItem.weaponData}
+          onCollect={handleCollectItem}
         />
       ))}
 
@@ -1112,6 +1243,33 @@ export default function MapGame(): React.ReactElement {
         onExit={handleExit}
         respawnTime={deathState.respawnTime}
       />
+
+      {/* Notificação de inventário cheio */}
+      {inventoryFullNotification && (
+        <div
+          style={{
+            position: "fixed",
+            top: "50%",
+            left: "50%",
+            transform: "translate(-50%, -50%)",
+            background: "rgba(255, 0, 0, 0.9)",
+            color: "white",
+            padding: "16px 24px",
+            borderRadius: "8px",
+            fontSize: "18px",
+            fontWeight: "bold",
+            zIndex: 1000,
+            textAlign: "center",
+            boxShadow: "0 4px 16px rgba(0, 0, 0, 0.5)",
+            animation: "pulse 0.5s ease-in-out",
+          }}
+        >
+          ⚠️ INVENTÁRIO CHEIO! ⚠️
+          <div style={{ fontSize: "14px", marginTop: "8px", fontWeight: "normal" }}>
+            Remova alguns itens antes de coletar mais
+          </div>
+        </div>
+      )}
     </div>
   );
 }

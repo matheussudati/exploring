@@ -1,77 +1,105 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useRef } from "react";
 import type { InventoryItem, Weapon } from "../../types/game";
-import { latLngToMeters } from "../../utils/gameUtils";
+import { latLngToMeters, calculateDistance } from "../../utils/gameUtils";
 
 interface DroppedItemProps {
+  itemId: string; // ID único do item dropado
   item: InventoryItem;
   position: { lat: number; lng: number };
   currentCenter: { lat: number; lng: number };
   weaponData?: Weapon; // Dados específicos da arma
+  onCollect?: (itemId: string) => void; // Callback para coletar item
 }
 
 export function DroppedItem({
+  itemId,
   item,
   position,
   currentCenter,
   weaponData,
+  onCollect,
 }: DroppedItemProps) {
-  // Memoiza o cálculo de posição para evitar recálculos desnecessários
-  const { pixelX, pixelY, isVisible } = useMemo(() => {
-    // Calcula a diferença entre a posição do item e o centro atual
-    const deltaLat = position.lat - currentCenter.lat;
-    const deltaLng = position.lng - currentCenter.lng;
+  // Cache para estabilizar a posição
+  const stablePositionRef = useRef<{ pixelX: number; pixelY: number } | null>(null);
+  const lastCenterRef = useRef<{ lat: number; lng: number } | null>(null);
 
-    // Converte para metros usando a mesma lógica do OtherPlayer
-    const { metersNorth, metersEast } = latLngToMeters(
-      currentCenter.lat,
-      deltaLat,
-      deltaLng
-    );
+  // Calcula a posição do item relativa ao centro atual
+  const deltaLat = position.lat - currentCenter.lat;
+  const deltaLng = position.lng - currentCenter.lng;
 
-    // Usa escala fixa para zoom 18 (0.6 metros por pixel)
-    const metersPerPixel = 0.6;
+  const { metersNorth, metersEast } = latLngToMeters(
+    currentCenter.lat,
+    deltaLat,
+    deltaLng
+  );
+
+  // No zoom 18, aproximadamente 0.6 metros por pixel
+  const metersPerPixel = 0.6;
+  
+  // Calcula posição em pixels
+  const rawPixelX = metersEast / metersPerPixel;
+  const rawPixelY = -metersNorth / metersPerPixel; // Negativo porque Y cresce para baixo
+
+  // Sistema de estabilização: apenas atualiza posição se houve mudança significativa
+  let pixelX, pixelY;
+  
+  const hasSignificantChange = !lastCenterRef.current || 
+    Math.abs(currentCenter.lat - lastCenterRef.current.lat) > 0.000005 || 
+    Math.abs(currentCenter.lng - lastCenterRef.current.lng) > 0.000005;
+
+  if (hasSignificantChange || !stablePositionRef.current) {
+    // Houve mudança significativa, recalcula e arredonda para estabilidade
+    pixelX = Math.round(rawPixelX * 2) / 2; // Arredonda para 0.5 pixels
+    pixelY = Math.round(rawPixelY * 2) / 2; // Arredonda para 0.5 pixels
     
-    const pixelX = metersEast / metersPerPixel;
-    const pixelY = -metersNorth / metersPerPixel; // Negativo porque Y cresce para baixo
+    // Atualiza o cache
+    stablePositionRef.current = { pixelX, pixelY };
+    lastCenterRef.current = { lat: currentCenter.lat, lng: currentCenter.lng };
+  } else {
+    // Usa posição estável do cache
+    pixelX = stablePositionRef.current.pixelX;
+    pixelY = stablePositionRef.current.pixelY;
+  }
 
-    // Verifica se o item está visível na tela (usando a mesma lógica do OtherPlayer)
-    const visible = !(
-      Math.abs(pixelX) > window.innerWidth ||
-      Math.abs(pixelY) > window.innerHeight
-    );
+  // Calcula distância do jogador para o item
+  const distanceToPlayer = calculateDistance(currentCenter, position);
+  const isNearby = distanceToPlayer <= 20; // 20 metros de raio
 
-    // Debug simplificado
-    if (Math.abs(pixelX) > 500 || Math.abs(pixelY) > 500) {
-      console.log(`📍 Item ${item.name} longe:`, {
-        deltaLat: deltaLat.toFixed(8),
-        deltaLng: deltaLng.toFixed(8),
-        pixelX: pixelX.toFixed(2),
-        pixelY: pixelY.toFixed(2),
-      });
-    }
-
-    return { pixelX, pixelY, isVisible: visible };
-  }, [position.lng, position.lat, currentCenter.lng, currentCenter.lat, item.name]);
-
-  if (!isVisible) {
+  // Se o item estiver muito longe, não renderiza
+  if (
+    Math.abs(pixelX) > window.innerWidth ||
+    Math.abs(pixelY) > window.innerHeight
+  ) {
     return null;
   }
 
   return (
-    <div
-      style={{
-        position: "absolute",
-        left: `calc(50% + ${pixelX}px)`,
-        top: `calc(50% + ${pixelY}px)`,
-        transform: "translate(-50%, -50%)",
-        zIndex: 5,
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        gap: "4px",
-        pointerEvents: "none",
-      }}
-    >
+    <>
+      {/* Estilos CSS para animação */}
+      <style>{`
+        @keyframes pulse {
+          0% { opacity: 1; }
+          50% { opacity: 0.6; }
+          100% { opacity: 1; }
+        }
+      `}</style>
+      
+      <div
+        style={{
+          position: "absolute",
+          left: `calc(50% + ${pixelX}px)`,
+          top: `calc(50% + ${pixelY}px)`,
+          transform: "translate(-50%, -50%)",
+          zIndex: 5,
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          gap: "4px",
+          pointerEvents: "none",
+          // Destaque visual quando próximo
+          filter: isNearby ? "brightness(1.2) drop-shadow(0 0 8px rgba(255,213,79,0.6))" : "none",
+        }}
+      >
       {/* Ícone do item */}
       <div
         style={{
@@ -123,6 +151,20 @@ export function DroppedItem({
             <div>Tipo: {weaponData.type}</div>
           </div>
         )}
+
+        {/* Indicador de proximidade para coleta */}
+        {isNearby && (
+          <div style={{ 
+            marginTop: "6px", 
+            fontSize: "12px", 
+            fontWeight: "bold",
+            color: "#FFD54F",
+            textShadow: "0 1px 2px rgba(0,0,0,0.8)",
+            animation: "pulse 1s infinite"
+          }}>
+            Pressione [E] para coletar
+          </div>
+        )}
       </div>
 
       {/* Quantidade (se maior que 1) */}
@@ -145,6 +187,7 @@ export function DroppedItem({
           {item.quantity}
         </div>
       )}
-    </div>
+      </div>
+    </>
   );
 }
