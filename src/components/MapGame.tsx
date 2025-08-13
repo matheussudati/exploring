@@ -357,7 +357,7 @@ export default function MapGame(): React.ReactElement {
         position: currentPlayerPosition, // Usa a posição atual capturada dentro do setState
         timestamp: Date.now(),
         // Se for uma arma, inclui os dados específicos da arma
-        weaponData: weaponData,
+        weaponData: weaponData || undefined,
       };
 
       console.log("✅ Item criado com posição:", {
