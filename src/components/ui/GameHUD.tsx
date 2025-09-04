@@ -1,6 +1,5 @@
 import React from "react";
 import type { GameState, InventoryItem } from "../../types/game";
-import { formatScore } from "../../utils/gameUtils";
 
 interface GameHUDProps {
   gameState: GameState;
@@ -17,7 +16,6 @@ export function GameHUD({
 }: GameHUDProps) {
   const {
     playerName,
-    playerScore,
     playerHealth,
     playerMaxHealth,
     currentWeapon,
@@ -51,7 +49,6 @@ export function GameHUD({
           Informações
         </div>
         <div>Jogador: {playerName}</div>
-        <div>Pontuação: {formatScore(playerScore)}</div>
         <div>Jogadores online: {Object.keys(otherPlayers).length + 1}</div>
         <div>
           Territórios: {playerTerritories}/{territories.length}

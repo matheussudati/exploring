@@ -7,14 +7,14 @@ Um jogo multiplayer em tempo real onde jogadores competem para capturar territó
 ### Objetivo
 
 - Capture territórios espalhados pelo mapa para ganhar pontos
-- Elimine outros jogadores para aumentar sua pontuação
+- Elimine outros jogadores para dominar o mapa
 - Seja o jogador com mais pontos para vencer!
 
 ### Funcionalidades
 
 - **Multiplayer em tempo real** - Jogue com outros jogadores simultaneamente
 - **Mapa real** - Baseado em OpenStreetMap com geolocalização
-- **Sistema de pontuação** - Ganhe pontos capturando territórios e eliminando jogadores
+- **Sistema de territórios** - Capture e controle territórios para dominar o mapa
 - **Territórios capturáveis** - Áreas específicas que podem ser conquistadas
 - **Interface responsiva** - Funciona em diferentes dispositivos
 
@@ -22,12 +22,11 @@ Um jogo multiplayer em tempo real onde jogadores competem para capturar territó
 
 1. **Movimento**: Use as teclas W/A/S/D para mover seu personagem
 2. **Captura de Territórios**: Aproxime-se dos territórios coloridos para capturá-los
-3. **Eliminação**: Ataque outros jogadores para ganhar pontos
-4. **Pontuação**:
-   - +50 pontos por território capturado
-   - +10 pontos por jogador eliminado
-   - -5 pontos quando você é atingido
-   - -20 pontos quando perde um território
+3. **Eliminação**: Ataque outros jogadores para dominar o mapa
+4. **Controle de Territórios**:
+   - Capture territórios ficando dentro dos círculos
+   - Mantenha controle dos territórios para dominar o mapa
+   - Territórios capturados são liberados quando o jogador sai do jogo
 
 ## 🚀 Como Executar o Projeto
 

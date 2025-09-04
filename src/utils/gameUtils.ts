@@ -140,6 +140,3 @@ export function formatTime(seconds: number): string {
   return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
 }
 
-export function formatScore(score: number): string {
-  return score.toLocaleString();
-}

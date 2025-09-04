@@ -98,7 +98,7 @@ export function OtherPlayer({ player, currentCenter }: OtherPlayerProps) {
           whiteSpace: "nowrap",
         }}
       >
-        {player.name} ({player.score})
+        {player.name}
       </div>
     </div>
   );

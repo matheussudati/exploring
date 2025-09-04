@@ -185,7 +185,7 @@ export function Player({
           fontWeight: isLocal ? "bold" : "normal",
         }}
       >
-        {player.name} ({player.score})
+        {player.name}
       </div>
     </div>
   );

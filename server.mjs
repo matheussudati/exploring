@@ -48,7 +48,6 @@ io.on('connection', (socket) => {
       name: playerData.name,
       position: playerData.position,
       color: `hsl(${Math.random() * 360}, 70%, 50%)`, // Cor aleatória para cada jogador
-      score: 0,
       territories: []
     };
     
@@ -83,17 +82,11 @@ io.on('connection', (socket) => {
     const target = players.get(targetId);
     
     if (attacker && target && targetId !== socket.id) {
-      // Adiciona pontos para o atacante
-      attacker.score += 10;
+      // Notifica todos os jogadores sobre o hit
+      io.emit('playerHit', { id: socket.id });
+      io.emit('playerHit', { id: targetId });
       
-      // Remove pontos do alvo
-      target.score = Math.max(0, target.score - 5);
-      
-      // Notifica todos os jogadores sobre a mudança de pontuação
-      io.emit('playerHit', { id: socket.id, score: attacker.score });
-      io.emit('playerHit', { id: targetId, score: target.score });
-      
-      console.log(`${attacker.name} atingiu ${target.name}! ${attacker.name}: ${attacker.score}, ${target.name}: ${target.score}`);
+      console.log(`${attacker.name} atingiu ${target.name}!`);
     }
   });
 
@@ -109,8 +102,6 @@ io.on('connection', (socket) => {
         const previousOwner = players.get(territory.ownerId);
         if (previousOwner) {
           previousOwner.territories = previousOwner.territories.filter(t => t !== territoryId);
-          previousOwner.score = Math.max(0, previousOwner.score - 20);
-          io.emit('playerHit', { id: territory.ownerId, score: previousOwner.score });
         }
       }
       
@@ -123,17 +114,13 @@ io.on('connection', (socket) => {
         player.territories.push(territoryId);
       }
       
-      // Adiciona pontos por captura
-      player.score += 50;
-      
       // Notifica todos os jogadores
       io.emit('territoryCaptured', {
         territoryId,
-        ownerId,
-        score: player.score
+        ownerId
       });
       
-      console.log(`${player.name} capturou o território ${territoryId}! Pontuação: ${player.score}`);
+      console.log(`${player.name} capturou o território ${territoryId}!`);
     }
   });
 

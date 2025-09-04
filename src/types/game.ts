@@ -5,7 +5,6 @@ export interface Player {
   name: string;
   position: LatLng;
   color: string;
-  score: number;
   territories: string[];
   health: number;
   maxHealth: number;
@@ -76,7 +75,6 @@ export interface GameState {
   isConnected: boolean;
   playerName: string;
   playerColor: string;
-  playerScore: number;
   playerId: string;
   playerHealth: number;
   playerMaxHealth: number;

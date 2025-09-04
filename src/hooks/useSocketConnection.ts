@@ -48,7 +48,6 @@ export function useSocketConnection({
           setGameState(prev => ({
             ...prev,
             playerColor: player.color,
-            playerScore: player.score || 0,
             playerHealth: player.health || 100,
             playerMaxHealth: player.maxHealth || 100,
             isAlive: player.isAlive !== false,
@@ -85,11 +84,10 @@ export function useSocketConnection({
       });
     });
 
-    socket.on('playerHit', ({ id, score, health }: { id: string; score: number; health?: number }) => {
+    socket.on('playerHit', ({ id, health }: { id: string; health?: number }) => {
       if (id === socket.id) {
         setGameState(prev => ({
           ...prev,
-          playerScore: score,
           playerHealth: health ?? prev.playerHealth,
           isAlive: health !== undefined ? health > 0 : prev.isAlive,
         }));
@@ -101,7 +99,7 @@ export function useSocketConnection({
               ...prev,
               otherPlayers: {
                 ...prev.otherPlayers,
-                [id]: { ...player, score, health: health ?? player.health, isAlive: health !== undefined ? health > 0 : player.isAlive }
+                [id]: { ...player, health: health ?? player.health, isAlive: health !== undefined ? health > 0 : player.isAlive }
               }
             };
           }
@@ -110,7 +108,7 @@ export function useSocketConnection({
       }
     });
 
-    socket.on('territoryCaptured', ({ territoryId, ownerId, score }: { territoryId: string; ownerId: string; score: number }) => {
+    socket.on('territoryCaptured', ({ territoryId, ownerId }: { territoryId: string; ownerId: string }) => {
       setGameState(prev => ({
         ...prev,
         territories: prev.territories.map(territory =>
@@ -118,7 +116,6 @@ export function useSocketConnection({
             ? { ...territory, ownerId, captureProgress: 100 }
             : territory
         ),
-        playerScore: ownerId === socket.id ? score : prev.playerScore,
         hitEffects: ownerId === socket.id ? [
           ...prev.hitEffects,
           {

@@ -260,7 +260,6 @@ export function GameMenu({
                 <div style={{ fontSize: "14px", opacity: 0.8 }}>
                   <div>Jogos Jogados: 0</div>
                   <div>Vitórias: 0</div>
-                  <div>Pontuação Total: 0</div>
                   <div>Tempo de Jogo: 00:00</div>
                 </div>
               </div>

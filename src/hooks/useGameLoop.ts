@@ -91,7 +91,6 @@ export function useGameLoop({
                   position: prev.center,
                   name: prev.playerName,
                   color: prev.playerColor,
-                  score: prev.playerScore,
                   health: prev.playerHealth,
                   maxHealth: prev.playerMaxHealth,
                   isAlive: prev.isAlive,
