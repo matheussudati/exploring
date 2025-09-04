@@ -20,7 +20,7 @@ export function useSocketConnection({
   const handleConnect = (name: string) => {
     setGameState(prev => ({ ...prev, playerName: name }));
     
-    const socket = io('http://localhost:3000');
+    const socket = io('http://192.168.2.202:3000');
     socketRef.current = socket;
 
     socket.on('connect', () => {
@@ -28,7 +28,7 @@ export function useSocketConnection({
       if (socket.id) {
         setGameState(prev => ({ 
           ...prev, 
-          playerId: socket.id,
+          playerId: socket.id || '',
           isConnected: true,
           currentWeapon: { ...WEAPONS.pistol, ammo: WEAPONS.pistol.maxAmmo, lastShot: 0 }
         }));
@@ -48,6 +48,7 @@ export function useSocketConnection({
           setGameState(prev => ({
             ...prev,
             playerColor: player.color,
+            playerScore: player.score || 0,
             playerHealth: player.health || 100,
             playerMaxHealth: player.maxHealth || 100,
             isAlive: player.isAlive !== false,
@@ -84,10 +85,11 @@ export function useSocketConnection({
       });
     });
 
-    socket.on('playerHit', ({ id, health }: { id: string; health?: number }) => {
+    socket.on('playerHit', ({ id, score, health }: { id: string; score: number; health?: number }) => {
       if (id === socket.id) {
         setGameState(prev => ({
           ...prev,
+          playerScore: score,
           playerHealth: health ?? prev.playerHealth,
           isAlive: health !== undefined ? health > 0 : prev.isAlive,
         }));
@@ -99,7 +101,7 @@ export function useSocketConnection({
               ...prev,
               otherPlayers: {
                 ...prev.otherPlayers,
-                [id]: { ...player, health: health ?? player.health, isAlive: health !== undefined ? health > 0 : player.isAlive }
+                [id]: { ...player, score, health: health ?? player.health, isAlive: health !== undefined ? health > 0 : player.isAlive }
               }
             };
           }
@@ -108,7 +110,7 @@ export function useSocketConnection({
       }
     });
 
-    socket.on('territoryCaptured', ({ territoryId, ownerId }: { territoryId: string; ownerId: string }) => {
+    socket.on('territoryCaptured', ({ territoryId, ownerId, score }: { territoryId: string; ownerId: string; score: number }) => {
       setGameState(prev => ({
         ...prev,
         territories: prev.territories.map(territory =>
@@ -116,6 +118,7 @@ export function useSocketConnection({
             ? { ...territory, ownerId, captureProgress: 100 }
             : territory
         ),
+        playerScore: ownerId === socket.id ? score : prev.playerScore,
         hitEffects: ownerId === socket.id ? [
           ...prev.hitEffects,
           {
