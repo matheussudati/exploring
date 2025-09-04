@@ -55,6 +55,9 @@ io.on('connection', (socket) => {
       position: playerData.position,
       color: `hsl(${Math.random() * 360}, 70%, 50%)`, // Cor aleatória para cada jogador
       score: 0,
+      health: 100,
+      maxHealth: 100,
+      isAlive: true,
       territories: []
     };
     
@@ -66,7 +69,7 @@ io.on('connection', (socket) => {
     // Notifica outros jogadores sobre o novo jogador
     socket.broadcast.emit('playerJoined', player);
     
-    console.log(`${player.name} entrou no jogo`);
+    console.log(`${player.name} entrou no jogo na posição:`, player.position);
   });
 
   // Quando um jogador se move
@@ -79,6 +82,7 @@ io.on('connection', (socket) => {
         id: socket.id,
         position: position
       });
+      console.log(`${player.name} moveu para:`, position);
     }
   });
 
@@ -140,6 +144,23 @@ io.on('connection', (socket) => {
       });
       
       console.log(`${player.name} capturou o território ${territoryId}! Pontuação: ${player.score}`);
+    }
+  });
+
+  // Sistema de heartbeat para sincronização regular
+  socket.on('heartbeat', (playerData) => {
+    const player = players.get(socket.id);
+    if (player) {
+      // Atualiza dados do player
+      player.position = playerData.position;
+      player.health = playerData.health || player.health;
+      player.isAlive = playerData.isAlive !== undefined ? playerData.isAlive : player.isAlive;
+      
+      // Envia atualização para outros players
+      socket.broadcast.emit('playerMoved', {
+        id: socket.id,
+        position: player.position
+      });
     }
   });
 

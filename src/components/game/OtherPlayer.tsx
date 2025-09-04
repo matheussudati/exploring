@@ -8,6 +8,13 @@ interface OtherPlayerProps {
 }
 
 export function OtherPlayer({ player, currentCenter }: OtherPlayerProps) {
+  // Log de debug para verificar se o player está sendo renderizado
+  console.log(`Renderizando OtherPlayer: ${player.name} (${player.id})`, {
+    playerPosition: player.position,
+    currentCenter,
+    isAlive: player.isAlive
+  });
+
   // Calcula a posição do outro jogador relativa ao centro atual
   const deltaLat = player.position.lat - currentCenter.lat;
   const deltaLng = player.position.lng - currentCenter.lng;
@@ -23,15 +30,29 @@ export function OtherPlayer({ player, currentCenter }: OtherPlayerProps) {
   const pixelX = metersEast / metersPerPixel;
   const pixelY = -metersNorth / metersPerPixel; // Negativo porque Y cresce para baixo
 
+  console.log(`Posição calculada para ${player.name}:`, {
+    deltaLat,
+    deltaLng,
+    metersNorth,
+    metersEast,
+    pixelX,
+    pixelY,
+    windowSize: { width: window.innerWidth, height: window.innerHeight }
+  });
+
   // Se o jogador estiver muito longe, não renderiza
   if (
-    Math.abs(pixelX) > window.innerWidth ||
-    Math.abs(pixelY) > window.innerHeight
+    Math.abs(pixelX) > window.innerWidth * 2 ||
+    Math.abs(pixelY) > window.innerHeight * 2
   ) {
+    console.log(`Player ${player.name} muito longe, não renderizando`);
     return null;
   }
 
-  if (!player.isAlive) return null;
+  if (!player.isAlive) {
+    console.log(`Player ${player.name} morto, não renderizando`);
+    return null;
+  }
 
   return (
     <div

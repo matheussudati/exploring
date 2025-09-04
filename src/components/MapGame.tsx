@@ -168,6 +168,7 @@ export default function MapGame(): React.ReactElement {
     emitPlayerMove,
     emitPlayerHit,
     emitTerritoryCaptured,
+    emitHeartbeat,
   } = useSocketConnection({
     gameState,
     setGameState,
@@ -175,6 +176,34 @@ export default function MapGame(): React.ReactElement {
       console.log(`Conectado como ${name}`);
     },
   });
+
+  // Debug: Log do estado dos outros players
+  useEffect(() => {
+    console.log('Estado dos outros players atualizado:', {
+      count: Object.keys(gameState.otherPlayers).length,
+      players: Object.values(gameState.otherPlayers).map(p => ({
+        id: p.id,
+        name: p.name,
+        position: p.position,
+        isAlive: p.isAlive
+      }))
+    });
+  }, [gameState.otherPlayers]);
+
+  // Sistema de heartbeat para sincronização regular
+  useEffect(() => {
+    if (!gameState.isConnected) return;
+
+    const heartbeatInterval = setInterval(() => {
+      emitHeartbeat({
+        position: gameState.center,
+        health: gameState.playerHealth,
+        isAlive: gameState.isAlive
+      });
+    }, 1000); // Envia heartbeat a cada segundo
+
+    return () => clearInterval(heartbeatInterval);
+  }, [gameState.isConnected, gameState.center, gameState.playerHealth, gameState.isAlive, emitHeartbeat]);
 
   // Game loop
   useGameLoop({
@@ -1184,13 +1213,16 @@ export default function MapGame(): React.ReactElement {
       />
 
       {/* Outros jogadores */}
-      {Object.values(gameState.otherPlayers).map((player) => (
-        <OtherPlayer
-          key={player.id}
-          player={player}
-          currentCenter={gameState.center}
-        />
-      ))}
+      {Object.values(gameState.otherPlayers).map((player) => {
+        console.log(`Renderizando player no MapGame: ${player.name} (${player.id})`);
+        return (
+          <OtherPlayer
+            key={player.id}
+            player={player}
+            currentCenter={gameState.center}
+          />
+        );
+      })}
 
       {/* Projéteis */}
       {gameState.projectiles.map((p) => (

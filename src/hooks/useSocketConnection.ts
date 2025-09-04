@@ -40,10 +40,19 @@ export function useSocketConnection({
     });
 
     socket.on('currentPlayers', (players: any[]) => {
+      console.log('Recebendo lista de players:', players);
       const playersObj: Record<string, any> = {};
       players.forEach(player => {
         if (player.id !== socket.id) {
-          playersObj[player.id] = player;
+          // Garante que o player tenha todas as propriedades necessárias
+          playersObj[player.id] = {
+            ...player,
+            health: player.health || 100,
+            maxHealth: player.maxHealth || 100,
+            isAlive: player.isAlive !== false,
+            score: player.score || 0
+          };
+          console.log(`Adicionando player ${player.name} (${player.id}) aos outros players`);
         } else {
           setGameState(prev => ({
             ...prev,
@@ -53,16 +62,28 @@ export function useSocketConnection({
             playerMaxHealth: player.maxHealth || 100,
             isAlive: player.isAlive !== false,
           }));
+          console.log(`Configurando dados do player local: ${player.name}`);
         }
       });
       setGameState(prev => ({ ...prev, otherPlayers: playersObj }));
+      console.log(`Total de outros players: ${Object.keys(playersObj).length}`);
     });
 
     socket.on('playerJoined', (player: any) => {
+      console.log(`Novo player entrou: ${player.name} (${player.id})`);
+      // Garante que o player tenha todas as propriedades necessárias
+      const completePlayer = {
+        ...player,
+        health: player.health || 100,
+        maxHealth: player.maxHealth || 100,
+        isAlive: player.isAlive !== false,
+        score: player.score || 0
+      };
       setGameState(prev => ({
         ...prev,
-        otherPlayers: { ...prev.otherPlayers, [player.id]: player }
+        otherPlayers: { ...prev.otherPlayers, [player.id]: completePlayer }
       }));
+      console.log(`Player ${player.name} adicionado aos outros players`);
     });
 
     socket.on('playerMoved', ({ id, position }: { id: string; position: any }) => {
@@ -158,6 +179,12 @@ export function useSocketConnection({
     }
   };
 
+  const emitHeartbeat = (playerData: any) => {
+    if (socketRef.current && socketRef.current.connected) {
+      socketRef.current.emit('heartbeat', playerData);
+    }
+  };
+
   useEffect(() => {
     return () => {
       if (socketRef.current) {
@@ -171,5 +198,6 @@ export function useSocketConnection({
     emitPlayerMove,
     emitPlayerHit,
     emitTerritoryCaptured,
+    emitHeartbeat,
   };
 }
